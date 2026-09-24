@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國小班級作業訂正追蹤系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti Library for student rewards -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts: Fredoka & Noto Sans TC for cartoon aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Fredoka', sans-serif;
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Pulsating Marquee Banner */
+        @keyframes alertPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.92; }
+        }
+        .animate-alert {
+            animation: alertPulse 1.8s infinite ease-in-out;
+        }
+
+        /* Cute Card & Button Shadow Effects */
+        .cartoon-card {
+            box-shadow: 0 8px 0 0 #cbd5e1;
+            border: 3px solid #475569;
+        }
+        .cartoon-btn {
+            box-shadow: 0 5px 0 0 #334155;
+            transition: all 0.1s ease;
+        }
+        .cartoon-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 0 #334155;
+        }
+
+        /* Student Number Button Custom Shadows */
+        .student-btn-green {
+            background-color: #4ade80;
+            border: 3px solid #166534;
+            box-shadow: 0 4px 0 0 #15803d;
+            color: #064e3b;
+        }
+        .student-btn-red {
+            background-color: #f87171;
+            border: 3px solid #991b1b;
+            box-shadow: 0 4px 0 0 #b91c1c;
+            color: #7f1d1d;
+            animation: pulseBg 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseBg {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+
+        /* Toast Popup Animation */
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-toast {
+            animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Custom Scrollbar for better UI on touch screens */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-16 text-slate-800">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        
+        <!-- TOP ALERT MARQUEE BANNER -->
+        <header class="bg-amber-300 border-4 border-amber-600 rounded-3xl p-4 md:p-6 mb-6 text-center cartoon-card animate-alert relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 text-amber-400 opacity-30 text-8xl pointer-events-none">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <span class="text-3xl md:text-5xl animate-bounce">📢</span>
+                <h1 class="text-2xl md:text-4xl font-black tracking-wide text-amber-950">
+                    未訂正完成不能下課！
+                </h1>
+                <span class="text-3xl md:text-5xl animate-bounce">🔔</span>
+            </div>
+            <p class="text-amber-900 font-bold mt-1 text-sm md:text-base">
+                請用心確認作業並完成訂正，老師檢查通過才能開心地去玩喔！
+            </p>
+        </header>
+
+        <!-- MODE SWITCHER & HEADER BAR -->
+        <div class="flex flex-col sm:flex-row items-center justify-between bg-white rounded-2xl p-4 mb-6 cartoon-card gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-100 text-indigo-700 p-3 rounded-2xl text-2xl font-black">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-black text-slate-800">班級作業訂正追蹤系統</h2>
+                    <p id="modeDescription" class="text-xs font-bold text-slate-500">
+                        👩‍🏫 目前模式：教師編輯模式（可新增作業與修改學生狀態）
+                    </p>
+                </div>
+            </div>
+
+            <!-- MODE SWITCH TOGGLE -->
+            <div class="flex items-center bg-slate-100 p-1.5 rounded-2xl border-2 border-slate-300">
+                <button id="btnTeacherMode" onclick="setMode('teacher')" class="px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 bg-indigo-600 text-white shadow-md">
+                    <i class="fa-solid fa-chalkboard-user"></i> 教師編輯模式
+                </button>
+                <button id="btnStudentMode" onclick="setMode('student')" class="px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-child"></i> 學生公告模式
+                </button>
+            </div>
+        </div>
+
+        <!-- REAL-TIME SUMMARY DASHBOARD -->
+        <section class="bg-sky-100 border-4 border-sky-400 rounded-3xl p-5 md:p-6 mb-6 cartoon-card">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4 border-b-2 border-sky-200 pb-3">
+                <div class="flex items-center gap-3">
+                    <span class="bg-sky-500 text-white w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-black shadow-sm">
+                        📊
+                    </span>
+                    <div>
+                        <h3 class="text-lg md:text-xl font-black text-sky-950">未完成名單即時統計</h3>
+                        <p class="text-xs font-bold text-sky-700">自動彙整各科未訂正完成之學生名單</p>
+                    </div>
+                </div>
+
+                <div class="bg-white px-5 py-2.5 rounded-2xl border-2 border-sky-300 flex items-center gap-3 shadow-inner">
+                    <span class="text-sm font-bold text-slate-600">總計未完成人數：</span>
+                    <span id="summaryTotalCount" class="text-2xl font-black text-rose-600">0 位</span>
+                </div>
+            </div>
+
+            <!-- Unfinished Student Badges Container -->
+            <div>
+                <div class="text-xs font-black text-sky-900 mb-2 flex items-center gap-1">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> 需要訂正的學生座號：
+                </div>
+                <div id="summaryBadgeContainer" class="flex flex-wrap gap-2 min-h-[42px] items-center">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ADD ASSIGNMENT PANEL (TEACHER MODE ONLY) -->
+        <section id="addAssignmentPanel" class="bg-emerald-50 border-4 border-emerald-400 rounded-3xl p-5 md:p-6 mb-8 cartoon-card">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-emerald-500 text-white w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-black shadow-sm">
+                    ➕
+                </span>
+                <div>
+                    <h3 class="text-lg md:text-xl font-black text-emerald-950">新增作業控制區 (Add Assignment Panel)</h3>
+                    <p class="text-xs font-bold text-emerald-700">選擇科目類別與範圍後點擊新增，輕鬆追蹤作業</p>
+                </div>
+            </div>
+
+            <!-- Add Assignment Form -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-2xl border-2 border-emerald-200">
+                
+                <!-- 1. Category Selection -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-black text-slate-700 flex items-center gap-1">
+                        <i class="fa-solid fa-folder text-emerald-600"></i> 1. 科目類別
+                    </label>
+                    <select id="selectCategory" onchange="onCategoryChange()" class="w-full bg-emerald-50/50 border-2 border-slate-300 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none cursor-pointer">
+                        <option value="chinese">國語類</option>
+                        <option value="math">數學類</option>
+                        <option value="social">社會類</option>
+                        <option value="custom">自訂項目</option>
+                    </select>
+                </div>
+
+                <!-- 2. Task Item Selection & Custom Name Input -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-black text-slate-700 flex items-center gap-1">
+                        <i class="fa-solid fa-book text-emerald-600"></i> 2. 作業項目
+                    </label>
+                    <select id="selectTask" onchange="onTaskChange()" class="w-full bg-emerald-50/50 border-2 border-slate-300 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none cursor-pointer">
+                        <!-- Populated dynamically based on category -->
+                    </select>
+                    <!-- Custom Input Box (Hidden by default, shows when '自訂' selected) -->
+                    <input type="text" id="inputCustomTask" placeholder="請輸入自訂作業名稱 (例: 英語習作)" class="hidden mt-1 w-full border-2 border-emerald-400 bg-emerald-50 rounded-xl px-3 py-1.5 text-sm font-bold outline-none">
+                </div>
+
+                <!-- 3. Range Selection & Custom Scope Input -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-black text-slate-700 flex items-center gap-1">
+                        <i class="fa-solid fa-list-ol text-emerald-600"></i> 3. 課次 / 範圍
+                    </label>
+                    <select id="selectScope" onchange="onScopeChange()" class="w-full bg-emerald-50/50 border-2 border-slate-300 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none cursor-pointer">
+                        <!-- Populated dynamically based on category -->
+                    </select>
+                    <!-- Custom Scope Input Box -->
+                    <input type="text" id="inputCustomScope" placeholder="請輸入自訂範圍 (例: 第五單元)" class="hidden mt-1 w-full border-2 border-emerald-400 bg-emerald-50 rounded-xl px-3 py-1.5 text-sm font-bold outline-none">
+                </div>
+
+                <!-- 4. Add Button -->
+                <div class="flex flex-col justify-end">
+                    <button onclick="addAssignment()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2.5 px-4 rounded-xl cartoon-btn border-2 border-emerald-700 flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-plus-circle text-lg"></i> 新增作業追蹤卡片
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASSIGNMENTS CARDS LIST GRID -->
+        <main>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-indigo-600"></i> 作業訂正追蹤卡片列表
+                </h3>
+                <span id="assignmentCardCount" class="text-xs font-bold bg-slate-200 text-slate-700 px-3 py-1 rounded-full">
+                    共 0 項作業
+                </span>
+            </div>
+
+            <!-- Cards Container -->
+            <div id="assignmentCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards will be populated here via JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <script>
+        // Configuration options for categories, assignments, and ranges
+        const CATEGORIES = {
+            chinese: {
+                name: '國語類',
+                tasks: ['國習', '國練', '甲本', '乙本', '成語', '國卷', '國考', '自訂'],
+                scopes: ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11', 'L12', '自訂範圍']
+            },
+            math: {
+                name: '數學類',
+                tasks: ['數習', '數作', '數卷', '數考', '自訂'],
+                scopes: ['CH1', 'CH2', 'CH3', 'CH4', 'CH5', 'CH6', 'CH7', 'CH8', 'CH9', 'CH10', '自訂範圍']
+            },
+            social: {
+                name: '社會類',
+                tasks: ['社作', '社習', '社考', '社卷', '自訂'],
+                scopes: ['1-1', '1-2', '1-3', 'CH1', 'CH2', 'CH3', 'CH4', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2', '4-3', '自訂範圍']
+            },
+            custom: {
+                name: '自訂項目',
+                tasks: ['自訂'],
+                scopes: ['自訂範圍']
+            }
+        };
+
+        // Application State
+        let state = {
+            mode: 'teacher', // 'teacher' | 'student'
+            totalStudents: 14, // 1 ~ 14 座號
+            assignments: [
+                { id: 'item-1', name: '國習', scope: 'L3', pending: [3, 7, 12] },
+                { id: 'item-2', name: '數習', scope: 'CH2', pending: [5, 7] },
+                { id: 'item-3', name: '社作', scope: '1-2', pending: [2, 11] }
+            ]
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Load state from localStorage if available
+            const savedState = localStorage.getItem('school_assignment_tracker_state');
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    if (parsed && Array.isArray(parsed.assignments)) {
+                        state.assignments = parsed.assignments;
+                    }
+                } catch (e) {
+                    console.error('Failed to load saved state:', e);
+                }
+            }
+
+            // Populate options for the Add Assignment form
+            onCategoryChange();
+            
+            // Render the page
+            render();
+        });
+
+        // Save state helper
+        function saveState() {
+            localStorage.setItem('school_assignment_tracker_state', JSON.stringify({
+                assignments: state.assignments
+            }));
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            const btnTeacher = document.getElementById('btnTeacherMode');
+            const btnStudent = document.getElementById('btnStudentMode');
+            const modeDesc = document.getElementById('modeDescription');
+            const addPanel = document.getElementById('addAssignmentPanel');
+
+            if (mode === 'teacher') {
+                btnTeacher.className = "px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 bg-indigo-600 text-white shadow-md";
+                btnStudent.className = "px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+                modeDesc.innerText = "👩‍🏫 目前模式：教師編輯模式（可新增作業與點選勾選變更狀態）";
+                addPanel.classList.remove('hidden');
+            } else {
+                btnStudent.className = "px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 bg-amber-500 text-white shadow-md";
+                btnTeacher.className = "px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+                modeDesc.innerText = "🧑‍🎓 目前模式：學生公告模式（點選自己座號消除未訂正，無法二次修改）";
+                addPanel.classList.add('hidden');
+            }
+
+            render();
+            showToast(mode === 'teacher' ? '已切換至【👩‍🏫 教師編輯模式】' : '已切換至【🧑‍🎓 學生公告模式】', 'info');
+        }
+
+        // Triggered when category changes
+        function onCategoryChange() {
+            const categoryKey = document.getElementById('selectCategory').value;
+            const categoryObj = CATEGORIES[categoryKey];
+
+            // Populate Tasks
+            const selectTask = document.getElementById('selectTask');
+            selectTask.innerHTML = '';
+            categoryObj.tasks.forEach(task => {
+                const opt = document.createElement('option');
+                opt.value = task;
+                opt.textContent = task;
+                selectTask.appendChild(opt);
+            });
+
+            // Populate Scopes
+            const selectScope = document.getElementById('selectScope');
+            selectScope.innerHTML = '';
+            categoryObj.scopes.forEach(scope => {
+                const opt = document.createElement('option');
+                opt.value = scope;
+                opt.textContent = scope;
+                selectScope.appendChild(opt);
+            });
+
+            // Trigger updates for dynamic inputs
+            onTaskChange();
+            onScopeChange();
+        }
+
+        // Triggered when task item changes
+        function onTaskChange() {
+            const taskValue = document.getElementById('selectTask').value;
+            const customTaskInput = document.getElementById('inputCustomTask');
+            if (taskValue === '自訂') {
+                customTaskInput.classList.remove('hidden');
+                customTaskInput.focus();
+            } else {
+                customTaskInput.classList.add('hidden');
+            }
+        }
+
+        // Triggered when scope changes
+        function onScopeChange() {
+            const scopeValue = document.getElementById('selectScope').value;
+            const customScopeInput = document.getElementById('inputCustomScope');
+            if (scopeValue === '自訂範圍') {
+                customScopeInput.classList.remove('hidden');
+                customScopeInput.focus();
+            } else {
+                customScopeInput.classList.add('hidden');
+            }
+        }
+
+        function addAssignment() {
+            const categoryKey = document.getElementById('selectCategory').value;
+            const taskSelectVal = document.getElementById('selectTask').value;
+            const scopeSelectVal = document.getElementById('selectScope').value;
+            
+            let finalName = taskSelectVal;
+            if (taskSelectVal === '自訂') {
+                const customVal = document.getElementById('inputCustomTask').value.trim();
+                if (!customVal) {
+                    showToast('請輸入自訂作業名稱！', 'warning');
+                    return;
+                }
+                finalName = customVal;
+            }
+
+            let finalScope = scopeSelectVal;
+            if (scopeSelectVal === '自訂範圍') {
+                const customScopeVal = document.getElementById('inputCustomScope').value.trim();
+                if (!customScopeVal) {
+                    showToast('請輸入自訂課次範圍！', 'warning');
+                    return;
+                }
+                finalScope = customScopeVal;
+            }
+
+            // Check for Duplicate Assignment (Name + Scope combination)
+            const isDuplicate = state.assignments.some(
+                item => item.name.trim() === finalName.trim() && item.scope.trim() === finalScope.trim()
+            );
+
+            if (isDuplicate) {
+                showToast(`⚠️ 【${finalName} ${finalScope}】 已經在卡片清單中囉！請勿重複新增。`, 'warning');
+                return;
+            }
+
+            // Create new assignment
+            const newAssignment = {
+                id: 'item-' + Date.now(),
+                name: finalName,
+                scope: finalScope,
+                pending: [] // initially all complete or set empty
+            };
+
+            state.assignments.unshift(newAssignment);
+            saveState();
+            render();
+
+            showToast(`✨ 成功新增作業卡片：【${finalName} - ${finalScope}】`, 'success');
+
+            // Reset inputs
+            if (taskSelectVal === '自訂') document.getElementById('inputCustomTask').value = '';
+            if (scopeSelectVal === '自訂範圍') document.getElementById('inputCustomScope').value = '';
+        }
+
+        function toggleStudentStatus(assignmentId, studentNo) {
+            const assignment = state.assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+
+            const index = assignment.pending.indexOf(studentNo);
+
+            if (state.mode === 'teacher') {
+                // Teacher mode: Toggle back and forth freely
+                if (index > -1) {
+                    assignment.pending.splice(index, 1);
+                } else {
+                    assignment.pending.push(studentNo);
+                }
+                saveState();
+                render();
+            } else {
+                // Student mode: Only allow converting RED (unfinished) to GREEN (finished)
+                if (index > -1) {
+                    assignment.pending.splice(index, 1);
+                    saveState();
+                    render();
+                    
+                    // Celebrate with confetti!
+                    triggerConfetti();
+                    showToast(`🎉 太棒了！${studentNo}號 完成了【${assignment.name} ${assignment.scope}】的訂正！`, 'success');
+                } else {
+                    // Clicking green in student mode -> friendly hint
+                    showToast(`👍 ${studentNo}號 的【${assignment.name} ${assignment.scope}】已經是完成狀態囉！`, 'info');
+                }
+            }
+        }
+
+        // Set all students to RED (unfinished) for a specific assignment
+        function setAllStudentsUnfinished(assignmentId) {
+            const assignment = state.assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+            
+            // Fill with 1 ~ 14
+            assignment.pending = Array.from({ length: state.totalStudents }, (_, i) => i + 1);
+            saveState();
+            render();
+            showToast(`已將【${assignment.name} ${assignment.scope}】全選標記為未完成`, 'info');
+        }
+
+        // Clear all students (Set all to GREEN) for a specific assignment
+        function setAllStudentsFinished(assignmentId) {
+            const assignment = state.assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+            
+            assignment.pending = [];
+            saveState();
+            render();
+            showToast(`🎉 已清空【${assignment.name} ${assignment.scope}】所有未完成座號`, 'success');
+        }
+
+        // Delete assignment card
+        function deleteAssignment(assignmentId) {
+            const assignment = state.assignments.find(a => a.id === assignmentId);
+            if (!assignment) return;
+
+            state.assignments = state.assignments.filter(a => a.id !== assignmentId);
+            saveState();
+            render();
+            showToast(`🗑️ 已刪除作業卡片：【${assignment.name} ${assignment.scope}】`, 'info');
+        }
+
+        function render() {
+            renderSummaryDashboard();
+            renderAssignmentCards();
+        }
+
+        function renderSummaryDashboard() {
+            // Collect all unique student numbers that are pending across ALL assignments
+            const uniquePendingSet = new Set();
+            state.assignments.forEach(a => {
+                a.pending.forEach(no => uniquePendingSet.add(no));
+            });
+
+            const sortedPending = Array.from(uniquePendingSet).sort((a, b) => a - b);
+            
+            // Total count update
+            const totalCountEl = document.getElementById('summaryTotalCount');
+            totalCountEl.textContent = `${sortedPending.length} 位`;
+
+            // Badge container update
+            const badgeContainer = document.getElementById('summaryBadgeContainer');
+            badgeContainer.innerHTML = '';
+
+            if (sortedPending.length === 0) {
+                badgeContainer.innerHTML = `
+                    <div class="flex items-center gap-2 text-emerald-700 bg-emerald-100 border-2 border-emerald-300 font-black px-4 py-2 rounded-2xl text-sm">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+                        太棒了！目前完全沒有任何未訂正作業的同學！🎉
+                    </div>
+                `;
+            } else {
+                sortedPending.forEach(no => {
+                    // Find which specific assignments this student owes
+                    const studentOwes = state.assignments
+                        .filter(a => a.pending.includes(no))
+                        .map(a => `${a.name}(${a.scope})`);
+
+                    const badge = document.createElement('div');
+                    badge.className = "group relative bg-rose-500 hover:bg-rose-600 text-white font-black px-3.5 py-1.5 rounded-2xl border-2 border-rose-700 shadow-sm flex items-center gap-1.5 cursor-pointer text-sm transition-transform hover:scale-105";
+                    badge.innerHTML = `
+                        <span>${no} 號</span>
+                        <span class="bg-rose-700 text-rose-100 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                            ${studentOwes.length}項
+                        </span>
+                        
+                        <!-- Tooltip on hover -->
+                        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col bg-slate-900 text-white text-xs rounded-xl p-2.5 whitespace-nowrap shadow-xl z-30 pointer-events-none border border-slate-700">
+                            <span class="font-bold text-amber-300 mb-1">【${no}號 未訂正項目】</span>
+                            ${studentOwes.map(o => `<span>• ${o}</span>`).join('')}
+                        </div>
+                    `;
+                    badgeContainer.appendChild(badge);
+                });
+            }
+        }
+
+        function renderAssignmentCards() {
+            const container = document.getElementById('assignmentCardsGrid');
+            const cardCountEl = document.getElementById('assignmentCardCount');
+            
+            cardCountEl.textContent = `共 ${state.assignments.length} 項作業`;
+            container.innerHTML = '';
+
+            if (state.assignments.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-3xl border-4 border-dashed border-slate-300 p-8">
+                        <div class="text-6xl mb-3">📝</div>
+                        <h4 class="text-xl font-black text-slate-700">目前沒有追蹤中的作業項目</h4>
+                        <p class="text-slate-500 text-sm font-bold mt-1">請在上方「新增作業控制區」新增需要同學們訂正的作業吧！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            state.assignments.forEach(assignment => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-3xl p-5 cartoon-card flex flex-col justify-between border-4 border-slate-700 relative overflow-hidden";
+
+                // Count how many students incomplete
+                const unfinishedCount = assignment.pending.length;
+
+                // Card HTML Header
+                let headerHtml = `
+                    <div class="flex items-start justify-between gap-2 border-b-2 border-slate-100 pb-3 mb-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-indigo-600 text-white font-black text-xs px-2.5 py-1 rounded-xl shadow-sm">
+                                    ${assignment.scope}
+                                </span>
+                                <h4 class="text-2xl font-black text-slate-800 tracking-wide">
+                                    ${assignment.name}
+                                </h4>
+                            </div>
+                            <p class="text-xs font-bold text-slate-500 mt-1">
+                                未完成：<span class="${unfinishedCount > 0 ? 'text-rose-600 font-black' : 'text-emerald-600 font-black'}">${unfinishedCount}</span> / ${state.totalStudents} 人
+                            </p>
+                        </div>
+
+                        ${state.mode === 'teacher' ? `
+                            <button onclick="deleteAssignment('${assignment.id}')" title="刪除此作業" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-xl hover:bg-rose-50 transition-colors">
+                                <i class="fa-solid fa-trash-can text-base"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+
+                // Quick action bar (Teacher mode only)
+                let teacherActionsHtml = '';
+                if (state.mode === 'teacher') {
+                    teacherActionsHtml = `
+                        <div class="flex items-center justify-between gap-2 mb-3 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+                            <span class="text-[11px] font-bold text-slate-500 pl-1">快速批次操作：</span>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="setAllStudentsUnfinished('${assignment.id}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs px-2.5 py-1 rounded-xl border border-rose-300 transition-colors">
+                                    全選 (改未訂正)
+                                </button>
+                                <button onclick="setAllStudentsFinished('${assignment.id}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-black text-xs px-2.5 py-1 rounded-xl border border-emerald-300 transition-colors">
+                                    全不選 (改完成)
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Grid of Student Buttons (1 ~ 14)
+                let studentButtonsHtml = '<div class="grid grid-cols-7 gap-2 my-1">';
+                for (let no = 1; no <= state.totalStudents; no++) {
+                    const isPending = assignment.pending.includes(no);
+                    const btnStyle = isPending ? 'student-btn-red' : 'student-btn-green';
+                    
+                    studentButtonsHtml += `
+                        <button onclick="toggleStudentStatus('${assignment.id}', ${no})" 
+                                class="${btnStyle} h-10 rounded-2xl font-black text-base flex items-center justify-center transition-all cursor-pointer active:scale-95 select-none"
+                                title="${no}號: ${isPending ? '未訂正 (點擊改為完成)' : '已完成'}">
+                            ${no}
+                        </button>
+                    `;
+                }
+                studentButtonsHtml += '</div>';
+
+                // Footer Status Summary inside Card
+                let footerHtml = `
+                    <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                        <span>座號 1 ~ 14 號</span>
+                        <span class="flex items-center gap-3">
+                            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>已完成</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>未完成</span>
+                        </span>
+                    </div>
+                `;
+
+                card.innerHTML = headerHtml + teacherActionsHtml + studentButtonsHtml + footerHtml;
+                container.appendChild(card);
+            });
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            let bgStyle = "bg-slate-900 text-white border-slate-700";
+            if (type === 'success') bgStyle = "bg-emerald-600 text-white border-emerald-800";
+            if (type === 'warning') bgStyle = "bg-amber-500 text-slate-950 border-amber-700 font-black";
+            if (type === 'info') bgStyle = "bg-indigo-600 text-white border-indigo-800";
+
+            toast.className = `${bgStyle} px-5 py-3 rounded-2xl border-2 shadow-2xl font-bold text-sm flex items-center gap-2 pointer-events-auto animate-toast`;
+            toast.innerHTML = message;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // Confetti effect for student celebration
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 60,
+                    spread: 70,
+                    origin: { y: 0.7 }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
