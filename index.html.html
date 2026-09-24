@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>「請訂正！」班級作業訂正系統</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              yellow: '#FFD966',
+              softYellow: '#FFF2CC',
+              orange: '#F6B26B',
+              red: '#E06666',
+              darkRed: '#CC0000',
+              green: '#93C47D',
+              darkGreen: '#38761D',
+              blue: '#6FA8DC',
+              purple: '#8E7CC3',
+              chalkboard: '#2A4339',
+            }
+          },
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            sans: ['Noto Sans TC', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #F7F9FB;
+      background-image: radial-gradient(#E2E8F0 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+    }
+
+    .font-fredoka {
+      font-family: 'Fredoka', cursive, 'Noto Sans TC', sans-serif;
+    }
+
+    @keyframes pulse-subtle {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.03); opacity: 0.92; }
+    }
+
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2s infinite ease-in-out;
+    }
+
+    @keyframes pop-in {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-pop-in {
+      animation: pop-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col pb-16 selection:bg-yellow-200">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b-4 border-amber-300 shadow-sm transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-amber-400 text-amber-950 flex items-center justify-center text-2xl font-bold shadow-md transform -rotate-3 hover:rotate-0 transition-transform">
+          <i class="fa-solid fa-pen-ruler"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-black tracking-tight text-slate-800 font-fredoka">「請訂正！」</h1>
+            <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full border border-amber-300">班級作業追蹤系統</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">即時掌控全班作業訂正進度 ‧ 高效下課查核</p>
+        </div>
+      </div>
+
+      <!-- Slogan Warning Banner -->
+      <div class="animate-pulse-subtle bg-gradient-to-r from-red-500 via-rose-500 to-red-600 text-white px-4 py-2 rounded-2xl shadow-lg border-2 border-red-300 flex items-center gap-2 text-sm sm:text-base font-black">
+        <i class="fa-solid fa-triangle-exclamation text-yellow-300 text-lg"></i>
+        <span>「⚠️ 未訂正完成不能下課！」</span>
+      </div>
+
+      <!-- Mode Switcher Navigation Tabs -->
+      <nav class="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto justify-center">
+        <button id="nav-landing" onclick="switchMode('landing')" class="mode-btn px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 bg-white text-amber-600 shadow-sm">
+          <i class="fa-solid fa-house"></i>
+          <span>首頁總覽</span>
+        </button>
+        <button id="nav-student" onclick="switchMode('student')" class="mode-btn px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center gap-2">
+          <i class="fa-solid fa-bullhorn text-amber-500"></i>
+          <span>學生公告</span>
+        </button>
+        <button id="nav-teacher" onclick="switchMode('teacher')" class="mode-btn px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center gap-2">
+          <i class="fa-solid fa-user-gear text-indigo-500"></i>
+          <span>教師編輯</span>
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-grow space-y-6">
+
+    <!-- LANDING / DASHBOARD HERO BAR -->
+    <section id="section-hero" class="bg-gradient-to-br from-amber-100 via-orange-50 to-emerald-50 rounded-3xl p-6 border-2 border-amber-200/80 shadow-md relative overflow-hidden">
+      <div class="absolute -right-8 -bottom-8 opacity-10 text-9xl text-amber-800 pointer-events-none font-black">
+        <i class="fa-solid fa-clipboard-check"></i>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+        <!-- Quick Realtime Stats Card 1 -->
+        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-amber-200/60 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-2xl font-black">
+            <i class="fa-solid fa-user-xmark"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">待訂正總人數</div>
+            <div class="text-3xl font-black text-slate-800 font-fredoka flex items-baseline gap-1">
+              <span id="stat-unfinished-students">0</span>
+              <span class="text-sm font-normal text-slate-500">人未清空</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Realtime Stats Card 2 -->
+        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-amber-200/60 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-2xl font-black">
+            <i class="fa-solid fa-book-open text-amber-600"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">進行中訂正作業</div>
+            <div class="text-3xl font-black text-slate-800 font-fredoka flex items-baseline gap-1">
+              <span id="stat-active-assignments">0</span>
+              <span class="text-sm font-normal text-slate-500">項作業</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Realtime Stats Card 3 -->
+        <div class="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-amber-200/60 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl font-black">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">全班總達成率</div>
+            <div class="text-3xl font-black text-emerald-600 font-fredoka flex items-baseline gap-1">
+              <span id="stat-completion-rate">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 訂正小叮嚀 (Quick Start 3-Step Guide) -->
+    <section id="section-guide" class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-lightbulb text-amber-400 text-xl"></i>
+          <span>訂正小叮嚀（學生作業三步驟）</span>
+        </h2>
+        <span class="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-200">下課前必看！</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Step 1 -->
+        <div class="flex items-start gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-amber-950 flex-shrink-0 font-black text-lg flex items-center justify-center shadow-sm">
+            1
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm mb-0.5">找座號</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">在大螢幕上查看自己的座號是否為<span class="text-red-600 font-bold">紅色數字</span>。</p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="flex items-start gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-amber-950 flex-shrink-0 font-black text-lg flex items-center justify-center shadow-sm">
+            2
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm mb-0.5">拿作業與訂正</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">至作業區拿回對應科目，認真訂正錯題並請老師過目。</p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="flex items-start gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-amber-950 flex-shrink-0 font-black text-lg flex items-center justify-center shadow-sm">
+            3
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm mb-0.5">點擊消除號碼</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">通過審核後，點擊號碼轉為<span class="text-emerald-600 font-bold">綠色完成</span>即可安心下課！</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary & Live Statistics Box -->
+    <section class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-red-500 animate-ping"></div>
+          <h2 class="text-lg font-bold text-slate-800">未完成座號即時總覽</h2>
+        </div>
+
+        <!-- Seat Quick Search Filter -->
+        <div class="flex items-center gap-2">
+          <label for="seat-filter" class="text-xs font-bold text-slate-500 flex items-center gap-1">
+            <i class="fa-solid fa-magnifying-glass"></i> 查特定座號:
+          </label>
+          <select id="seat-filter" onchange="renderApp()" class="text-xs font-bold bg-slate-100 border border-slate-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400">
+            <option value="all">顯示全班 (1-14號)</option>
+            <option value="1">1 號</option>
+            <option value="2">2 號</option>
+            <option value="3">3 號</option>
+            <option value="4">4 號</option>
+            <option value="5">5 號</option>
+            <option value="6">6 號</option>
+            <option value="7">7 號</option>
+            <option value="8">8 號</option>
+            <option value="9">9 號</option>
+            <option value="10">10 號</option>
+            <option value="11">11 號</option>
+            <option value="12">12 號</option>
+            <option value="13">13 號</option>
+            <option value="14">14 號</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Realtime Summary Pills -->
+      <div id="unfinished-seats-summary" class="flex flex-wrap gap-2 items-center min-h-[40px]">
+        <!-- Dynamic JS Pill Rendering -->
+      </div>
+    </section>
+
+    <!-- Teacher Mode Control Panel (+ 新增作業) -->
+    <section id="section-teacher-panel" class="hidden transition-all duration-300 bg-amber-500/10 border-2 border-amber-400/80 rounded-3xl p-6 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-black text-amber-950 flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-amber-600"></i>
+          <span>新增作業訂正項目</span>
+        </h2>
+        <span class="text-xs bg-amber-200 text-amber-900 font-bold px-3 py-1 rounded-full">教師權限模式</span>
+      </div>
+
+      <!-- Creation Form -->
+      <form id="add-assignment-form" onsubmit="handleAddAssignment(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white p-4 rounded-2xl border border-amber-200 shadow-sm">
+        
+        <!-- Subject Selection -->
+        <div class="space-y-1">
+          <label class="block text-xs font-bold text-slate-700">1. 選擇科目</label>
+          <select id="select-subject" onchange="handleSubjectChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            <option value="國語">國語</option>
+            <option value="數學">數學</option>
+            <option value="社會">社會</option>
+            <option value="自訂">自行輸入 (自訂科目)</option>
+          </select>
+        </div>
+
+        <!-- Assignment Type Selection -->
+        <div class="space-y-1">
+          <label class="block text-xs font-bold text-slate-700">2. 作業名稱</label>
+          <select id="select-type" onchange="handleTypeChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            <!-- Dynamic JS fill -->
+          </select>
+          <input type="text" id="input-custom-type" placeholder="請輸入作業名稱 (例如: 音樂學習單)" class="hidden w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none mt-1">
+        </div>
+
+        <!-- Scope Selection -->
+        <div class="space-y-1">
+          <label class="block text-xs font-bold text-slate-700">3. 範圍 / 單元</label>
+          <select id="select-scope" onchange="handleScopeChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            <!-- Dynamic JS fill -->
+          </select>
+          <input type="text" id="input-custom-scope" placeholder="請輸入範圍 (例如: p.12-15)" class="hidden w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-400 focus:outline-none mt-1">
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex items-end">
+          <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-sm py-2.5 px-4 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 transform active:scale-95">
+            <i class="fa-solid fa-plus text-base"></i>
+            <span>新增至訂正看板</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Teacher Quick Actions & Batch Clear -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div class="text-xs text-slate-600 font-medium flex items-center gap-1">
+          <i class="fa-solid fa-circle-info text-amber-600"></i>
+          <span>提示：教師可直接點擊下方卡片的號碼自由切換「未訂正/已訂正」狀態。</span>
+        </div>
+        <button onclick="openResetModal()" class="text-xs font-bold bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-xl border border-rose-300 transition-colors flex items-center gap-1">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>全部重設/清空所有卡片</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Assignment Cards Section -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-amber-500"></i>
+          <span>作業訂正清單</span>
+        </h2>
+        <div id="mode-badge-indicator" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          目前模式：首頁總覽
+        </div>
+      </div>
+
+      <!-- Container for Cards Grid -->
+      <div id="assignments-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Dynamic JS Cards Injection -->
+      </div>
+
+      <!-- Empty State Graphic -->
+      <div id="empty-state" class="hidden bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-200 space-y-3">
+        <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-4xl">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800">好棒！目前沒有任何待訂正作業！</h3>
+        <p class="text-sm text-slate-500 max-w-md mx-auto">全班同學太優秀了，或是老師尚未新增新的訂正項目。切換至「教師編輯模式」即可新增作業！</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: Anti-Duplicate Alert Modal -->
+  <div id="modal-duplicate" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-rose-300 text-center space-y-4 animate-pop-in">
+      <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-3xl mx-auto">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-black text-slate-800">重複的作業項目！</h3>
+        <p id="modal-duplicate-msg" class="text-xs text-slate-600 mt-2 leading-relaxed">
+          系統中已經存在相同的作業項目與範圍囉！
+        </p>
+      </div>
+      <button onclick="closeModal('modal-duplicate')" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-sm transition-colors">
+        我知道了，重新選擇
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Reset All Confirmation Modal -->
+  <div id="modal-reset" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-slate-200 text-center space-y-4 animate-pop-in">
+      <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto">
+        <i class="fa-solid fa-arrow-rotate-left"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-black text-slate-800">確定重設所有資料？</h3>
+        <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+          此動作將會清空目前所有的作業訂正卡片與紀錄，無法復原。
+        </p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-reset')" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">
+          取消
+        </button>
+        <button onclick="confirmResetAll()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-colors">
+          確定重設
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Subject Preset Data Options
+    const SUBJECT_OPTIONS = {
+      '國語': {
+        types: ['國習', '國練', '甲本', '乙本', '成語', '國卷', '國考', '自訂'],
+        scopes: ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11', 'L12', '自訂']
+      },
+      '數學': {
+        types: ['數習', '數作', '數卷', '數考', '自訂'],
+        scopes: ['CH1', 'CH2', 'CH3', 'CH4', 'CH5', 'CH6', 'CH7', 'CH8', 'CH9', 'CH10', '自訂']
+      },
+      '社會': {
+        types: ['社作', '社習', '社考', '社卷', '自訂'],
+        scopes: ['1-1', '1-2', '1-3', 'CH1', 'CH2', 'CH3', 'CH4', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2', '4-3', '自訂']
+      },
+      '自訂': {
+        types: ['自訂'],
+        scopes: ['自訂']
+      }
+    };
+
+    // Application Initial State
+    const TOTAL_STUDENTS = 14;
+    let currentMode = 'landing'; // 'landing', 'student', 'teacher'
+    let assignments = [];
+
+    // Local Storage Key
+    const STORAGE_KEY = 'please_correct_classroom_data_v1';
+
+    // Default Sample Data if Local Storage is Empty
+    const DEFAULT_ASSIGNMENTS = [
+      {
+        id: 'assign-sample-1',
+        subject: '國語',
+        type: '國習',
+        scope: 'L5',
+        // Seat numbers 1..14; true = complete (green), false = pending (red)
+        seats: {
+          1: false, 2: true, 3: false, 4: true, 5: false,
+          6: true, 7: true, 8: false, 9: true, 10: true,
+          11: false, 12: true, 13: true, 14: true
+        }
+      },
+      {
+        id: 'assign-sample-2',
+        subject: '數學',
+        type: '數作',
+        scope: 'CH3',
+        seats: {
+          1: true, 2: false, 3: false, 4: true, 5: true,
+          6: false, 7: true, 8: true, 9: false, 10: true,
+          11: true, 12: false, 13: true, 14: true
+        }
+      },
+      {
+        id: 'assign-sample-3',
+        subject: '社會',
+        type: '社習',
+        scope: '2-1',
+        seats: {
+          1: false, 2: true, 3: true, 4: false, 5: true,
+          6: true, 7: false, 8: true, 9: true, 10: true,
+          11: true, 12: true, 13: false, 14: true
+        }
+      }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      initFormDropdowns();
+      renderApp();
+    });
+
+    // Save Data to Local Storage
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(assignments));
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+      }
+    }
+
+    // Load Data from Local Storage
+    function loadData() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) {
+          assignments = JSON.parse(data);
+        } else {
+          assignments = JSON.parse(JSON.stringify(DEFAULT_ASSIGNMENTS));
+        }
+      } catch (e) {
+        assignments = JSON.parse(JSON.stringify(DEFAULT_ASSIGNMENTS));
+      }
+    }
+
+    function initFormDropdowns() {
+      handleSubjectChange();
+    }
+
+    function handleSubjectChange() {
+      const subjectSelect = document.getElementById('select-subject');
+      const typeSelect = document.getElementById('select-type');
+      const scopeSelect = document.getElementById('select-scope');
+      
+      const subject = subjectSelect.value;
+      const config = SUBJECT_OPTIONS[subject] || SUBJECT_OPTIONS['自訂'];
+
+      // Populate Types Dropdown
+      typeSelect.innerHTML = config.types.map(t => `<option value="${t}">${t}</option>`).join('');
+      
+      // Populate Scopes Dropdown
+      scopeSelect.innerHTML = config.scopes.map(s => `<option value="${s}">${s}</option>`).join('');
+
+      handleTypeChange();
+      handleScopeChange();
+    }
+
+    function handleTypeChange() {
+      const typeSelect = document.getElementById('select-type');
+      const customTypeInput = document.getElementById('input-custom-type');
+      if (typeSelect.value === '自訂') {
+        customTypeInput.classList.remove('hidden');
+        customTypeInput.required = true;
+      } else {
+        customTypeInput.classList.add('hidden');
+        customTypeInput.required = false;
+      }
+    }
+
+    function handleScopeChange() {
+      const scopeSelect = document.getElementById('select-scope');
+      const customScopeInput = document.getElementById('input-custom-scope');
+      if (scopeSelect.value === '自訂') {
+        customScopeInput.classList.remove('hidden');
+        customScopeInput.required = true;
+      } else {
+        customScopeInput.classList.add('hidden');
+        customScopeInput.required = false;
+      }
+    }
+
+    function handleAddAssignment(e) {
+      e.preventDefault();
+
+      const subject = document.getElementById('select-subject').value;
+      
+      let type = document.getElementById('select-type').value;
+      if (type === '自訂') {
+        type = document.getElementById('input-custom-type').value.trim();
+      }
+
+      let scope = document.getElementById('select-scope').value;
+      if (scope === '自訂') {
+        scope = document.getElementById('input-custom-scope').value.trim();
+      }
+
+      if (!type || !scope) return;
+
+      // Anti-duplicate protection check
+      const isDuplicate = assignments.some(a => 
+        a.subject === subject && a.type === type && a.scope === scope
+      );
+
+      if (isDuplicate) {
+        showModal('modal-duplicate', `已經存在「${subject} ${type} (${scope})」此項作業囉！切勿重複新增。`);
+        return;
+      }
+
+      // Create initial seats: All default to false (unfinished / red)
+      const initialSeats = {};
+      for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+        initialSeats[i] = false;
+      }
+
+      const newAssignment = {
+        id: 'assign-' + Date.now(),
+        subject,
+        type,
+        scope,
+        seats: initialSeats
+      };
+
+      assignments.unshift(newAssignment);
+      saveData();
+      renderApp();
+
+      // Clear input fields
+      document.getElementById('input-custom-type').value = '';
+      document.getElementById('input-custom-scope').value = '';
+      
+      // Play subtle chime sound
+      playChimeSound(600, 0.1);
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      
+      // Update Navigation Tab Styles
+      const buttons = {
+        landing: document.getElementById('nav-landing'),
+        student: document.getElementById('nav-student'),
+        teacher: document.getElementById('nav-teacher')
+      };
+
+      Object.keys(buttons).forEach(key => {
+        if (key === mode) {
+          buttons[key].className = "mode-btn px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 bg-slate-900 text-white shadow-md";
+        } else {
+          buttons[key].className = "mode-btn px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:text-slate-900 transition-all duration-200 flex items-center gap-2";
+        }
+      });
+
+      // Show/Hide Sections based on mode
+      const heroSection = document.getElementById('section-hero');
+      const guideSection = document.getElementById('section-guide');
+      const teacherPanel = document.getElementById('section-teacher-panel');
+      const modeBadge = document.getElementById('mode-badge-indicator');
+
+      if (mode === 'landing') {
+        heroSection.classList.remove('hidden');
+        guideSection.classList.remove('hidden');
+        teacherPanel.classList.add('hidden');
+        modeBadge.textContent = '目前模式：首頁總覽';
+        modeBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200';
+      } else if (mode === 'student') {
+        heroSection.classList.add('hidden');
+        guideSection.classList.remove('hidden');
+        teacherPanel.classList.add('hidden');
+        modeBadge.textContent = '📢 學生大螢幕模式 (僅可點選紅色號碼消除)';
+        modeBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+      } else if (mode === 'teacher') {
+        heroSection.classList.remove('hidden');
+        guideSection.classList.add('hidden');
+        teacherPanel.classList.remove('hidden');
+        modeBadge.textContent = '✏️ 教師編輯模式 (全權編輯與清理)';
+        modeBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300';
+      }
+
+      renderApp();
+    }
+
+    function toggleSeatStatus(assignId, seatNum) {
+      const assignment = assignments.find(a => a.id === assignId);
+      if (!assignment) return;
+
+      const currentState = assignment.seats[seatNum];
+
+      // Student Mode Restriction: Can only turn RED -> GREEN
+      if (currentMode === 'student' && currentState === true) {
+        return; // Green numbers locked in student mode
+      }
+
+      // Check remaining incomplete seats for this student BEFORE toggle
+      const countBefore = getUnfinishedCountForStudent(seatNum);
+
+      // Toggle state
+      assignment.seats[seatNum] = !currentState;
+      saveData();
+      renderApp();
+
+      // Sound feedback
+      if (!currentState) {
+        playChimeSound(800, 0.12);
+      } else {
+        playChimeSound(400, 0.08);
+      }
+
+      // Check if student cleared ALL their unfinished assignments!
+      const countAfter = getUnfinishedCountForStudent(seatNum);
+      if (countBefore > 0 && countAfter === 0) {
+        fireConfetti();
+      }
+    }
+
+    function getUnfinishedCountForStudent(seatNum) {
+      return assignments.reduce((acc, assign) => {
+        return acc + (assign.seats[seatNum] === false ? 1 : 0);
+      }, 0);
+    }
+
+    function deleteAssignment(assignId) {
+      if (currentMode !== 'teacher') return;
+      assignments = assignments.filter(a => a.id !== assignId);
+      saveData();
+      renderApp();
+    }
+
+    function setAllSeatsForCard(assignId, status) {
+      if (currentMode !== 'teacher') return;
+      const assignment = assignments.find(a => a.id === assignId);
+      if (!assignment) return;
+
+      for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+        assignment.seats[i] = status;
+      }
+      saveData();
+      renderApp();
+    }
+
+    function renderApp() {
+      const grid = document.getElementById('assignments-grid');
+      const emptyState = document.getElementById('empty-state');
+      const filterSeat = document.getElementById('seat-filter').value;
+
+      // 1. Calculate Real-time Statistics
+      let totalUnfinishedStudentsSet = new Set();
+      let totalItemsCount = 0;
+      let totalCompletedItemsCount = 0;
+
+      assignments.forEach(assign => {
+        for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+          totalItemsCount++;
+          if (assign.seats[i] === true) {
+            totalCompletedItemsCount++;
+          } else {
+            totalUnfinishedStudentsSet.add(i);
+          }
+        }
+      });
+
+      document.getElementById('stat-unfinished-students').textContent = totalUnfinishedStudentsSet.size;
+      document.getElementById('stat-active-assignments').textContent = assignments.length;
+      
+      const completionPercentage = totalItemsCount > 0 
+        ? Math.round((totalCompletedItemsCount / totalItemsCount) * 100) 
+        : 100;
+      document.getElementById('stat-completion-rate').textContent = completionPercentage + '%';
+
+      // 2. Render Live Summary Pills Box
+      renderSummaryBox(totalUnfinishedStudentsSet, filterSeat);
+
+      // 3. Render Assignment Cards
+      if (assignments.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      grid.innerHTML = assignments.map(assign => renderAssignmentCard(assign, filterSeat)).join('');
+    }
+
+    function renderAssignmentCard(assign, filterSeat) {
+      // Calculate unfinished seats for this card
+      const unfinishedSeats = [];
+      for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+        if (!assign.seats[i]) unfinishedSeats.push(i);
+      }
+
+      const isCardComplete = unfinishedSeats.length === 0;
+
+      // Subject Badge Colors
+      let subjectColor = 'bg-amber-100 text-amber-900 border-amber-300';
+      if (assign.subject === '國語') subjectColor = 'bg-rose-100 text-rose-800 border-rose-300';
+      if (assign.subject === '數學') subjectColor = 'bg-sky-100 text-sky-800 border-sky-300';
+      if (assign.subject === '社會') subjectColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+
+      // Seat Grid Buttons
+      let seatButtonsHTML = '';
+      for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+        const isComplete = assign.seats[i];
+        const isTargetFiltered = filterSeat !== 'all' && parseInt(filterSeat) === i;
+
+        // Button Style
+        let btnBg = isComplete 
+          ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm' 
+          : 'bg-rose-500 hover:bg-rose-600 text-white shadow-md animate-pulse-subtle';
+
+        if (currentMode === 'student' && isComplete) {
+          btnBg = 'bg-slate-200 text-slate-400 cursor-not-allowed';
+        }
+
+        const highlightBorder = isTargetFiltered ? 'ring-4 ring-amber-400 scale-110 z-10' : '';
+
+        seatButtonsHTML += `
+          <button 
+            onclick="toggleSeatStatus('${assign.id}', ${i})"
+            title="${i}號: ${isComplete ? '已訂正完成' : '未訂正'}"
+            class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-black text-sm sm:text-base flex items-center justify-center transition-all duration-150 transform active:scale-90 ${btnBg} ${highlightBorder}">
+            ${i}
+          </button>
+        `;
+      }
+
+      return `
+        <div class="bg-white rounded-3xl p-5 border-2 ${isCardComplete ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm space-y-4 transition-all hover:shadow-md">
+          
+          <!-- Card Header -->
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-xl text-xs font-black border ${subjectColor}">
+                ${assign.subject}
+              </span>
+              <h3 class="font-black text-lg text-slate-800">
+                ${assign.type} <span class="text-amber-600 font-fredoka">[${assign.scope}]</span>
+              </h3>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="flex items-center gap-1">
+              ${isCardComplete ? `
+                <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <i class="fa-solid fa-circle-check"></i> 全員訂正完成
+                </span>
+              ` : `
+                <span class="text-xs font-bold text-rose-600 bg-rose-100 px-2.5 py-1 rounded-full">
+                  剩 ${unfinishedSeats.length} 人
+                </span>
+              `}
+
+              ${currentMode === 'teacher' ? `
+                <div class="flex items-center gap-1 ml-2 border-l border-slate-200 pl-2">
+                  <button onclick="setAllSeatsForCard('${assign.id}', true)" title="全部標記已完成" class="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-slate-100 text-xs font-bold">
+                    <i class="fa-solid fa-check-double"></i>
+                  </button>
+                  <button onclick="setAllSeatsForCard('${assign.id}', false)" title="全部標記未完成" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 text-xs font-bold">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                  <button onclick="deleteAssignment('${assign.id}')" title="刪除此卡片" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 text-xs">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Seats Grid (14 Students) -->
+          <div class="grid grid-cols-7 gap-2 sm:gap-2.5 justify-items-center">
+            ${seatButtonsHTML}
+          </div>
+
+          <!-- Card Progress Footer -->
+          <div class="pt-2 flex items-center justify-between text-xs text-slate-500 font-medium border-t border-slate-100">
+            <span>未訂正座號: ${unfinishedSeats.length > 0 ? unfinishedSeats.join(', ') + ' 號' : '無'}</span>
+            <span class="text-slate-400">綠色=完成 ‧ 紅色=未完成</span>
+          </div>
+
+        </div>
+      `;
+    }
+
+    function renderSummaryBox(unfinishedSeatsSet, filterSeat) {
+      const summaryContainer = document.getElementById('unfinished-seats-summary');
+      
+      const unfinishedArray = Array.from(unfinishedSeatsSet).sort((a, b) => a - b);
+
+      if (unfinishedArray.length === 0) {
+        summaryContainer.innerHTML = `
+          <div class="flex items-center gap-2 text-emerald-600 font-bold text-sm bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-200">
+            <i class="fa-solid fa-face-smile-wink text-lg"></i>
+            <span>太棒了！全班所有作業均已完成訂正！可以安心下課！</span>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      for (let i = 1; i <= TOTAL_STUDENTS; i++) {
+        const isUnfinished = unfinishedSeatsSet.has(i);
+        const isFiltered = filterSeat !== 'all' && parseInt(filterSeat) === i;
+
+        if (filterSeat !== 'all' && parseInt(filterSeat) !== i) {
+          continue; // skip non-matching filtered items
+        }
+
+        if (isUnfinished) {
+          // Unfinished seat badge
+          html += `
+            <div class="px-3 py-1.5 rounded-xl bg-rose-100 border-2 border-rose-300 text-rose-800 font-black text-sm flex items-center gap-1.5 shadow-sm ${isFiltered ? 'scale-110 ring-2 ring-rose-400' : ''}">
+              <span>${i} 號</span>
+              <span class="text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-bold">待訂正</span>
+            </div>
+          `;
+        } else {
+          // Finished seat badge
+          html += `
+            <div class="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-sm flex items-center gap-1 opacity-60">
+              <span>${i} 號</span>
+              <i class="fa-solid fa-check text-xs text-emerald-500"></i>
+            </div>
+          `;
+        }
+      }
+
+      summaryContainer.innerHTML = html;
+    }
+
+    function playChimeSound(freq, duration) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        // Fallback silently if web audio blocked
+      }
+    }
+
+    function fireConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 100,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+
+    function showModal(modalId, message) {
+      if (message) {
+        document.getElementById('modal-duplicate-msg').textContent = message;
+      }
+      document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function openResetModal() {
+      showModal('modal-reset');
+    }
+
+    function confirmResetAll() {
+      assignments = [];
+      saveData();
+      renderApp();
+      closeModal('modal-reset');
+    }
+  </script>
+</body>
+</html>
